@@ -23,7 +23,9 @@ pip install -r requirements.txt
 export GOOGLE_API_KEY="your-free-gemini-key"
 ```
 
-You're given `orders.json`, a tiny order database. Work in `tool_use.ipynb` or `.py`.
+You're given `orders.json`, a tiny order database.
+
+> **No starter code — you build it from scratch.** There's no template in this repo; create your own working file(s) and write the code yourself. This close to the end of the bootcamp, scaffolding your own project is part of the exercise.
 
 ## Your Task
 
