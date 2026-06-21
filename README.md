@@ -1,60 +1,73 @@
-![logo_ironhack_blue 7](https://user-images.githubusercontent.com/23629340/40541063-a07a0a8a-601a-11e8-91b5-2f13e4e6b441.png)
-
 # Lab | Give the Model Hands
 
-## Overview
+Two tools — `lookup_order` and `calculate` — are described to a Gemini model
+via native function calling. The model can only *request* a tool call; the
+Python code validates the arguments, runs the real function, and feeds the
+result back to the model until it produces a final answer.
 
-So far the model has only produced words. Today you give it the ability to **act** — by letting it call tools. You'll define two tools, hand them to the model with **native Gemini function calling**, and watch the model→tool→model loop play out: the model asks for a tool, *your code* runs it, the result goes back, and the model finishes the job. You'll see, directly, that the model only ever **asks** — your code does the doing.
+## Files
 
-The task it can't solve alone needs **two tools used together**, so you'll see the loop go round more than once.
-
-## Learning Goals
-
-- Describe tools to a model with a schema (name, description, parameters)
-- Run the tool-use loop: receive a tool call, validate it, execute it, return the result
-- Chain two tool calls to answer a question neither tool could answer alone
+- `orders.json` — tiny order database (5 sample orders).
+- `tool_use_lab.py` — all the code: tool implementations, schemas, and the
+  model → tool → model loop. Built on the current `google-genai` SDK
+  (the older `google-generativeai` package is deprecated). Running it
+  asks three questions:
+  1. A two-tool, chained question (`lookup_order` → `calculate`).
+  2. A no-tool question (general "what can you help me with").
+  3. A stretch question with a non-existent order id (`A9999`), to show
+     graceful error handling.
+- `transcript.md` — generated automatically the first time you run the
+  script. Shows every tool call (name + arguments) and every final answer.
+- `requirements.txt` — Python dependencies.
 
 ## Setup
 
-Fork, clone, branch. Reuse your Gemini key.
-
 ```bash
 pip install -r requirements.txt
-export GOOGLE_API_KEY="your-free-gemini-key"
 ```
 
-You're given `orders.json`, a tiny order database.
+Provide your API key one of two ways:
 
-> **No starter code — you build it from scratch.** There's no template in this repo; create your own working file(s) and write the code yourself. This close to the end of the bootcamp, scaffolding your own project is part of the exercise.
+**Option A — .env file (recommended for Windows/PowerShell):**
+Create a file named `.env` in this folder (copy `.env.example`) containing:
+```
+GOOGLE_API_KEY=your-free-gemini-key
+```
+`tool_use_lab.py` loads it automatically via `python-dotenv`.
 
-## Your Task
+**Option B — environment variable:**
+```bash
+# macOS/Linux
+export GOOGLE_API_KEY="your-free-gemini-key"
 
-**Give the model two tools and let it answer a question that needs both.**
+# Windows PowerShell
+$env:GOOGLE_API_KEY="your-free-gemini-key"
+```
 
-1. Define **two tools** and describe each with a clear schema:
-   - `lookup_order(order_id)` — returns the order's item, price, purchase date, and warranty length from `orders.json`.
-   - `calculate(expression)` — evaluates a simple arithmetic expression and returns the number. (The model is unreliable at exact math — this is why it needs the tool.)
-2. Wire up the **tool-use loop** with native Gemini function calling: when the model emits a tool call, your code **validates the arguments**, runs the real function, and returns the result to the model. Loop until the model produces a final answer.
-3. Ask a question that requires **both tools in sequence**, for example:
-   > *"For order A1001, what would the total be if I bought three of them?"*
+Then run:
+```bash
+python tool_use_lab.py
+```
 
-   The model should call `lookup_order` to get the price, then `calculate` to multiply by three, then answer.
-4. Also send one question that needs **no tool** (e.g. `"What can you help me with?"`) and confirm the model just answers directly without calling anything.
+After it runs, open `transcript.md` to see the full tool-call log next to
+the model's final answers — that's your submission evidence.
 
-Your deliverable should show the tool calls the model made (which tool, what arguments) and the final answers — so the loop is visible.
+## How the loop works
 
-### Optional stretch
+1. `chat.send_message(prompt)` sends the user's question along with the two
+   tool schemas.
+2. If the model's response contains a `function_call` part, the code reads
+   `call.name` and `call.args`, runs the matching local Python function, and
+   wraps the result in a `FunctionResponse`.
+3. That result is sent back with `chat.send_message(...)`.
+4. Steps 2–3 repeat until the model responds with plain text and no further
+   function calls — that text is the final answer.
 
-Make the model produce a **bad argument** on purpose (ask about a non-existent order like `A9999`). Have your `lookup_order` return a clear "order not found" result and confirm the model handles it gracefully instead of crashing.
+This is why the two-tool question (e.g. "order A1001, total for 3 of them")
+makes the loop run twice: first `lookup_order` to get the price, then
+`calculate` to multiply it by 3.
 
-## Submission
+## No API key is committed
 
-Commit your code and a short transcript (or notebook output) showing the tool calls and answers for both questions. Open a PR and paste the link.
-
-## Quality Bar
-
-- Each tool has a clear schema the model can act on
-- Your code **validates and runs** the tools; the model only requests them
-- The two-tool question visibly triggers both calls in sequence
-- The no-tool question is answered directly, with no tool call
-- No API key is committed
+`GOOGLE_API_KEY` is read from the environment only — never hard-coded or
+written to any file in this repo.
